@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToDo List</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>ToDo List</h2>
+        <button id="addTaskBtn">Add Task</button>
+        <ul>
+            <li class="active" data-section="inbox">Inbox</li>
+            <li data-section="today">Today</li>
+            <li data-section="upcoming">Upcoming</li>
+            <li data-section="completed">Completed</li>
+        </ul>
+    </div>
+    <div class="main">
+        <h1 id="sectionTitle">Inbox</h1>
+        <div class="task-list" id="taskList"></div>
+    </div>
+
+    <!-- Modal for adding task -->
+    <div class="modal" id="taskModal">
+        <div class="modal-content">
+            <h3>Add Task</h3>
+            <input type="text" id="taskTitle" placeholder="Task Title" required>
+            <input type="date" id="taskDate">
+            <button id="saveTaskBtn">Save Task</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+       
+    </script>
+</body>
+</html>
