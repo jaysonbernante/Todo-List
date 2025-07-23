@@ -1,18 +1,17 @@
-// Load tasks and recycleBin from localStorage
 let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-let recycleBin = JSON.parse(localStorage.getItem('recycleBin') || '[]');
 let currentSection = 'inbox';
 
-// Elements
 const addTaskBtn = document.getElementById('addTaskBtn');
 const taskModal = document.getElementById('taskModal');
 const saveTaskBtn = document.getElementById('saveTaskBtn');
 const taskTitleInput = document.getElementById('taskTitle');
-const taskDescriptionInput = document.getElementById('taskDescription');
 const taskDateInput = document.getElementById('taskDate');
+const taskDescriptionInput = document.getElementById('taskDescription');
 const taskList = document.getElementById('taskList');
 const sectionTitle = document.getElementById('sectionTitle');
 const sidebarItems = document.querySelectorAll('.sidebar ul li');
+const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+const sidebar = document.getElementById('sidebar');
 
 const editModal = document.getElementById('editModal');
 const editTitle = document.getElementById('editTitle');
@@ -22,7 +21,6 @@ const updateTaskBtn = document.getElementById('updateTaskBtn');
 
 let taskBeingEdited = null;
 
-// Show Add Task modal
 addTaskBtn.onclick = () => {
   taskTitleInput.value = '';
   taskDescriptionInput.value = '';
@@ -30,26 +28,26 @@ addTaskBtn.onclick = () => {
   taskModal.style.display = 'flex';
 };
 
-// Hide modals on outside click
 taskModal.onclick = e => {
   if (e.target === taskModal) taskModal.style.display = 'none';
 };
+
 editModal.onclick = e => {
   if (e.target === editModal) editModal.style.display = 'none';
 };
 
-// Save new task
 saveTaskBtn.onclick = () => {
   const title = taskTitleInput.value.trim();
   const description = taskDescriptionInput.value.trim();
   const date = taskDateInput.value;
-  if (!title) return alert('Task title is required');
+  if (!title) return;
   tasks.push({
     id: Date.now(),
     title,
     description,
     date,
     completed: false,
+    deleted: false,
     created: new Date().toISOString().slice(0, 10),
   });
   localStorage.setItem('tasks', JSON.stringify(tasks));
@@ -57,9 +55,8 @@ saveTaskBtn.onclick = () => {
   renderTasks();
 };
 
-// Update edited task
 updateTaskBtn.onclick = () => {
-  if (!editTitle.value.trim()) return alert('Task title is required');
+  if (!editTitle.value.trim()) return;
   taskBeingEdited.title = editTitle.value.trim();
   taskBeingEdited.description = editDescription.value.trim();
   taskBeingEdited.date = editDate.value;
@@ -76,34 +73,36 @@ function openEditModal(task) {
   editModal.style.display = 'flex';
 }
 
-// Sidebar navigation
 sidebarItems.forEach(item => {
   item.onclick = () => {
     sidebarItems.forEach(i => i.classList.remove('active'));
     item.classList.add('active');
     currentSection = item.getAttribute('data-section');
     sectionTitle.textContent = item.textContent;
+    sidebar.classList.remove('show');
     renderTasks();
   };
 });
 
-// Render tasks or recycle bin based on currentSection
+toggleSidebarBtn.onclick = () => {
+  sidebar.classList.toggle('show');
+};
+
 function renderTasks() {
   taskList.innerHTML = '';
   const todayDate = new Date().toISOString().slice(0, 10);
-
   let filtered = [];
 
   if (currentSection === 'inbox') {
-    filtered = tasks.filter(t => !t.completed).reverse();
+    filtered = tasks.filter(t => !t.completed && !t.deleted).reverse();
   } else if (currentSection === 'today') {
-    filtered = tasks.filter(t => t.date === todayDate && !t.completed).reverse();
+    filtered = tasks.filter(t => t.date === todayDate && !t.completed && !t.deleted).reverse();
   } else if (currentSection === 'upcoming') {
-    filtered = tasks.filter(t => t.date > todayDate && !t.completed).reverse();
+    filtered = tasks.filter(t => t.date > todayDate && !t.completed && !t.deleted).reverse();
   } else if (currentSection === 'completed') {
-    filtered = tasks.filter(t => t.completed).reverse();
+    filtered = tasks.filter(t => t.completed && !t.deleted).reverse();
   } else if (currentSection === 'recycle') {
-    filtered = recycleBin.slice().reverse();
+    filtered = tasks.filter(t => t.deleted).reverse();
   }
 
   if (filtered.length === 0) {
@@ -115,92 +114,44 @@ function renderTasks() {
     const div = document.createElement('div');
     div.className = 'task' + (task.completed ? ' completed' : '');
 
-    if (currentSection === 'recycle') {
-      // Recycle bin layout
-      div.innerHTML = `
-        <div class="task-content">
-          <strong>${task.title}</strong>
-          ${task.date ? `<small style="color:#888;"> (${task.date})</small>` : ''}
-          ${task.description ? `<p style="margin: 5px 0 0; color:#555;">${task.description}</p>` : ''}
+    div.innerHTML = `
+      <label class="task-check">
+        <input type="checkbox" ${task.completed ? 'checked' : ''}>
+        <span class="checkmark"></span>
+      </label>
+      <div class="task-content">
+        <strong>${task.title}</strong>
+        ${task.date ? `<small style="color:#888;"> (${task.date})</small>` : ''}
+        ${task.description ? `<p style="margin: 5px 0 0; color:#555;">${task.description}</p>` : ''}
+      </div>
+      <div class="menu">
+        <button class="menu-btn">⋮</button>
+        <div class="menu-content">
+          <button class="edit">Edit</button>
+          <button class="delete">${task.deleted ? 'Restore' : 'Delete'}</button>
         </div>
-        <div class="menu">
-          <button class="menu-btn">⋮</button>
-          <div class="menu-content">
-            <button class="restore">Restore</button>
-            <button class="delete-permanent">Delete Permanently</button>
-          </div>
-        </div>
-      `;
+      </div>
+    `;
 
-      // Restore task
-      div.querySelector('.restore').onclick = () => {
-        recycleBin = recycleBin.filter(t => t.id !== task.id);
-        tasks.push(task);
-        localStorage.setItem('tasks', JSON.stringify(tasks));
-        localStorage.setItem('recycleBin', JSON.stringify(recycleBin));
-        renderTasks();
-      };
+    const checkbox = div.querySelector('input[type="checkbox"]');
+    checkbox.onchange = () => {
+      task.completed = checkbox.checked;
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      renderTasks();
+    };
 
-      // Delete permanently
-      div.querySelector('.delete-permanent').onclick = () => {
-        recycleBin = recycleBin.filter(t => t.id !== task.id);
-        localStorage.setItem('recycleBin', JSON.stringify(recycleBin));
-        renderTasks();
-      };
+    div.querySelector('.delete').onclick = () => {
+      task.deleted = !task.deleted;
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      renderTasks();
+    };
 
-    } else {
-      // Normal task layout
-      div.innerHTML = `
-        <label class="task-check">
-          <input type="checkbox" ${task.completed ? 'checked' : ''}>
-          <span class="checkmark"></span>
-        </label>
-        <div class="task-content">
-          <strong>${task.title}</strong>
-          ${task.date ? `<small style="color:#888;"> (${task.date})</small>` : ''}
-          ${task.description ? `<p style="margin: 5px 0 0; color:#555;">${task.description}</p>` : ''}
-        </div>
-        <div class="menu">
-          <button class="menu-btn">⋮</button>
-          <div class="menu-content">
-            <button class="edit">Edit</button>
-            <button class="delete">Delete</button>
-          </div>
-        </div>
-      `;
-
-      // Checkbox completion handler
-      const checkbox = div.querySelector('input[type="checkbox"]');
-      checkbox.onchange = () => {
-        if (checkbox.checked) {
-          task.completed = true;
-          localStorage.setItem('tasks', JSON.stringify(tasks));
-          currentSection = 'completed';
-          sidebarItems.forEach(i => i.classList.remove('active'));
-          document.querySelector('[data-section="completed"]').classList.add('active');
-          sectionTitle.textContent = 'Completed';
-          renderTasks();
-        }
-      };
-
-      // Delete moves task to recycle bin
-      div.querySelector('.delete').onclick = () => {
-        tasks = tasks.filter(t => t.id !== task.id);
-        recycleBin.push(task);
-        localStorage.setItem('tasks', JSON.stringify(tasks));
-        localStorage.setItem('recycleBin', JSON.stringify(recycleBin));
-        renderTasks();
-      };
-
-      // Edit opens edit modal
-      div.querySelector('.edit').onclick = () => {
-        openEditModal(task);
-      };
-    }
+    div.querySelector('.edit').onclick = () => {
+      openEditModal(task);
+    };
 
     taskList.appendChild(div);
   });
 }
 
-// Initial render
 renderTasks();
